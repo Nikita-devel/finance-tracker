@@ -1,0 +1,57 @@
+{
+  "name": "finance-tracker",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "dev": "next dev -p 3010",
+    "build": "next build",
+    "start": "next start -p 3010",
+    "db:migrate": "prisma migrate dev",
+    "db:push": "prisma db push",
+    "db:seed": "tsx prisma/seed.ts",
+    "db:studio": "prisma studio",
+    "generate": "prisma generate",
+    "test": "tsx --test src/lib/*.test.ts",
+    "postinstall": "prisma generate",
+    "setup": "prisma migrate deploy && tsx prisma/seed.ts",
+    "db:import": "tsx scripts/import-releves.ts",
+    "db:import:reset": "tsx scripts/import-releves.ts --reset",
+    "db:import:add": "tsx scripts/import-releves.ts --append",
+    "db:clear": "tsx scripts/clear.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@prisma/adapter-better-sqlite3": "^7.10.0",
+    "@prisma/client": "^7.10.0",
+    "better-sqlite3": "^13.0.3",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "date-fns": "^4.4.0",
+    "dotenv": "^17.4.2",
+    "lucide-react": "^1.39.0",
+    "next": "^15.5.25",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "recharts": "^3.10.1",
+    "tailwind-merge": "^3.6.0",
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/node": "^26.4.1",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.5",
+    "postcss": "^8.5.26",
+    "prisma": "^7.10.0",
+    "tailwindcss": "^4.3.3",
+    "tsx": "^4.23.13",
+    "typescript": "^5.9.3"
+  },
+  "private": true,
+  "engines": {
+    "node": ">=20.19"
+  }
+}

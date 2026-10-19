@@ -1,0 +1,165 @@
+// Finance Tracker — schéma de données (SQLite local)
+// Tous les montants sont stockés en CENTIMES (Int) pour éviter les erreurs de virgule flottante.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  color     String   @default("#6366f1")
+  slot      String   @unique // "A" ou "B"
+  createdAt DateTime @default(now())
+
+  /// Part STABLE du revenu net mensuel, en centimes (bourse, APL, aide familiale…).
+  /// Les revenus variables (cours, freelance, primes) sont saisis dans `Income`.
+  baseIncome Int @default(0)
+
+  expensesPaid    Expense[]          @relation("PaidBy")
+  shares          ExpenseShare[]
+  settlementsFrom Settlement[]       @relation("From")
+  settlementsTo   Settlement[]       @relation("To")
+  recurring       RecurringExpense[] @relation("RecurringPaidBy")
+  incomes         Income[]
+  budgets         CategoryBudget[]
+}
+
+/// Revenu variable : une ligne par encaissement réel.
+/// Le revenu d'un mois = `baseIncome` des deux utilisateurs + somme des `Income` du mois.
+/// La base n'est jamais saisie ici : pas de double comptage.
+model Income {
+  id        String   @id @default(cuid())
+  amount    Int
+  date      DateTime
+  source    String
+  note      String?
+  createdAt DateTime @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([date])
+  @@index([userId])
+}
+
+model Category {
+  id    String @id @default(cuid())
+  name  String @unique
+  icon  String @default("Tag")
+  color String @default("#94a3b8")
+
+  /// Règle 50/30/20 : BESOINS (50 %) ou ENVIES (30 %).
+  /// L'épargne n'est PAS une catégorie : c'est le reste (revenu − dépenses).
+  bucket String @default("BESOINS")
+
+  expenses  Expense[]
+  recurring RecurringExpense[]
+  budgets   CategoryBudget[]
+}
+
+/// Plafond mensuel PAR PERSONNE et par catégorie, en centimes.
+/// Ce qui est comparé au plafond n'est pas ce que la personne a avancé, mais sa
+/// PART (`ExpenseShare`) : une course 50/50 pèse pour moitié sur chacun, peu
+/// importe quelle carte a payé. Absence de ligne = catégorie non suivie pour
+/// cette personne.
+model CategoryBudget {
+  id     String @id @default(cuid())
+  amount Int
+
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([categoryId, userId])
+  @@index([userId])
+}
+
+model Expense {
+  id        String   @id @default(cuid())
+  title     String
+  amount    Int // centimes, > 0
+  date      DateTime
+  note      String?
+  splitType String // PERSONAL_A | PERSONAL_B | SHARED_50_50 | CUSTOM
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id])
+
+  paidById String
+  paidBy   User   @relation("PaidBy", fields: [paidById], references: [id])
+
+  shares ExpenseShare[]
+
+  /// Renseigné si la dépense a été générée depuis un modèle récurrent.
+  recurringId String?
+  recurring   RecurringExpense? @relation(fields: [recurringId], references: [id], onDelete: SetNull)
+
+  @@index([date])
+  @@index([categoryId])
+  @@index([recurringId])
+}
+
+/// Modèle de dépense répétée chaque mois (loyer, abonnements…).
+/// La génération est idempotente : un modèle ne produit qu'une dépense par mois.
+model RecurringExpense {
+  id            String   @id @default(cuid())
+  title         String
+  amount        Int
+  dayOfMonth    Int // 1..28, pour rester valide en février
+  splitType     String
+  customAmountA Int?
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id])
+
+  paidById String
+  paidBy   User   @relation("RecurringPaidBy", fields: [paidById], references: [id])
+
+  generated Expense[]
+}
+
+/// Part de la dépense réellement supportée par chaque utilisateur.
+/// La somme des `amount` d'une dépense est toujours égale au montant total.
+model ExpenseShare {
+  id     String @id @default(cuid())
+  amount Int
+
+  expenseId String
+  expense   Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@unique([expenseId, userId])
+}
+
+/// Remboursement effectif d'un utilisateur vers l'autre (remet le solde à zéro).
+model Settlement {
+  id     String   @id @default(cuid())
+  amount Int
+  date   DateTime
+  note   String?
+
+  fromUserId String
+  fromUser   User   @relation("From", fields: [fromUserId], references: [id])
+
+  toUserId String
+  toUser   User   @relation("To", fields: [toUserId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([date])
+}

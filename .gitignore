@@ -1,0 +1,12 @@
+node_modules
+.next
+out
+.env
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+src/generated
+.DS_Store
+next-env.d.ts
+tsconfig.tsbuildinfo
